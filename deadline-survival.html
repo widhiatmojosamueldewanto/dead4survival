@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DEADLINE: SURVIVAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+/* ===== Token warna & dasar ===== */
+:root{--bg:#08090b;--ink:#e9e5dc;--dim:#9a968d;--blood:#c8322b;--lamp:#e5a63a;--ok:#5fe0a0;--glass:rgba(22,24,29,.58);--line:rgba(255,255,255,.09)}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+#game{position:fixed;inset:0}
+#game canvas{display:block;width:100%;height:100%;filter:contrast(1.12) saturate(.8) brightness(1.08)} /* color grading */
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.78) 100%)}
+#dmg{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 35%,rgba(200,30,20,.85) 100%)}
+/* ===== Layar menu (glassmorphism) ===== */
+.scr{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:max(4vmin,16px);overflow-y:auto;text-align:center;background:radial-gradient(ellipse at 50% 120%,#2a0d0b 0%,rgba(8,9,11,.94) 55%)}
+.scr.on{display:flex}
+.panel{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:12px;padding:20px;max-width:min(960px,100%)}
+h1{font-weight:900;line-height:.86;letter-spacing:-.045em;font-size:clamp(3rem,13vw,9.5rem)}
+h1 span{display:block;color:transparent;-webkit-text-stroke:2px var(--blood)}
+h2{font-weight:800;font-size:clamp(1.4rem,4vw,2.2rem);letter-spacing:-.02em}
+p,.sm{color:var(--dim);line-height:1.55;font-size:.95rem}
+.btn{font:600 1rem Inter,sans-serif;color:var(--ink);padding:14px 26px;border-radius:12px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(10px);cursor:pointer;transition:transform .2s,border-color .2s,background .2s;min-width:220px}
+.btn:hover,.btn:focus-visible{transform:translateY(-2px);border-color:var(--lamp);outline:none}
+.btn.pri{background:var(--blood);border-color:transparent}
+.btn.pri:hover{background:#e2433b}
+.row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.card{flex:1 1 200px;max-width:280px;text-align:left;padding:16px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;transition:.2s}
+.card:hover{border-color:var(--lamp)}
+.card.sel{border-color:var(--blood);background:rgba(200,50,43,.14)}
+.card b{display:block;font-size:1.05rem;margin-bottom:4px}
+.card i{display:block;font-style:normal;color:var(--lamp);font-size:.8rem;margin-top:8px}
+.set{display:grid;grid-template-columns:auto 1fr;gap:14px 18px;align-items:center;text-align:left}
+.set input[type=range]{width:100%;accent-color:var(--blood)}
+.seg{display:flex;gap:6px}.seg .btn{min-width:0;padding:8px 14px;font-size:.9rem}.seg .btn.sel{background:var(--blood)}
+#splash h1{animation:flick 6s steps(1) infinite}
+@keyframes flick{0%,92%,96%,100%{opacity:1}93%{opacity:.35}94%{opacity:1}95%{opacity:.5}}
+#note{font-size:.8rem}
+/* ===== HUD ===== */
+#hud{position:fixed;inset:0;pointer-events:none;display:none}
+#hud.on{display:block}
+.hp{position:absolute;padding:10px 14px;border-radius:12px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(8px);font-weight:600}
+#hpBox{left:max(14px,env(safe-area-inset-left));bottom:14px;width:min(260px,40vw)}
+#bar{height:10px;border-radius:6px;background:rgba(255,255,255,.1);margin-top:6px;overflow:hidden}
+#bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#8d1d18,var(--blood));transition:width .15s}
+#ammoBox{right:14px;bottom:14px;text-align:right}
+#ammo{font-size:clamp(1.6rem,5vw,2.6rem);font-weight:900;letter-spacing:-.03em}
+#objBox{top:14px;left:50%;transform:translateX(-50%);text-align:center;max-width:70vw}
+#statBox{top:14px;right:14px;text-align:right;font-size:.9rem}
+#cross{position:absolute;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%)}
+#cross:before,#cross:after{content:"";position:absolute;background:var(--ink);opacity:.85}
+#cross:before{left:12px;top:0;width:2px;height:26px;-webkit-mask:linear-gradient(#000 35%,transparent 35% 65%,#000 65%);mask:linear-gradient(#000 35%,transparent 35% 65%,#000 65%)}
+#cross:after{top:12px;left:0;height:2px;width:26px;-webkit-mask:linear-gradient(90deg,#000 35%,transparent 35% 65%,#000 65%);mask:linear-gradient(90deg,#000 35%,transparent 35% 65%,#000 65%)}
+#cross.hit:before,#cross.hit:after{background:var(--blood)}
+#banner{position:absolute;top:26%;left:0;right:0;text-align:center;opacity:0;transition:opacity .5s}
+#banner.on{opacity:1}
+#banner b{display:block;font-size:clamp(1.6rem,6vw,3.4rem);font-weight:900;letter-spacing:-.03em}
+#pause{z-index:5}
+#end .big{font-size:clamp(1.2rem,3.2vw,1.7rem);font-weight:600;max-width:640px;line-height:1.45;min-height:5em}
+@media(max-width:560px){.set{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="game"></div><div id="vig"></div><div id="dmg"></div>
+
+<!-- ===== HUD ===== -->
+<div id="hud">
+  <div id="cross"></div>
+  <div class="hp" id="objBox"><span id="obj"></span></div>
+  <div class="hp" id="statBox"><div id="kills"></div><div id="time"></div></div>
+  <div class="hp" id="hpBox">Nyawa<div id="bar"><i></i></div></div>
+  <div class="hp" id="ammoBox"><div id="wname" class="sm"></div><div id="ammo"></div></div>
+  <div id="banner"><b></b><span class="sm"></span></div>
+</div>
+
+<!-- ===== Splash / Menu utama ===== -->
+<section class="scr on" id="splash">
+  <h1>DEADLINE<span>SURVIVAL</span></h1>
+  <p>Lima gelombang. Satu jalur evakuasi. Nol toleransi untuk telat.</p>
+  <div class="row" style="flex-direction:column;align-items:center">
+    <button class="btn pri" data-go="load">Mulai Misi</button>
+    <button class="btn" data-go="set">Pengaturan Grafis</button>
+    <button class="btn" data-go="cred">Kredit Pengembang</button>
+  </div>
+  <p id="note">Dimainkan dengan keyboard dan mouse (W/A/S/D, Spasi, klik kiri, R).</p>
+  <p id="bestTxt" class="sm"></p>
+</section>
+
+<!-- ===== Loadout ===== -->
+<section class="scr" id="load">
+  <h2>Pilih karakter dan senjata</h2>
+  <div class="row panel" id="chars"></div>
+  <div class="row panel" id="wps"></div>
+  <div class="row"><button class="btn" data-go="splash">Kembali</button><button class="btn pri" id="bGo">Masuk ke lapangan</button></div>
+</section>
+
+<!-- ===== Pengaturan ===== -->
+<section class="scr" id="set">
+  <h2>Pengaturan grafis dan suara</h2>
+  <div class="panel set">
+    <span>Kualitas grafis</span><div class="seg" id="qSeg"></div>
+    <span>Skala resolusi <b id="resV"></b></span><input type="range" id="res" min="0.5" max="1.25" step="0.05">
+    <span>Volume efek <b id="sfxV"></b></span><input type="range" id="sfx" min="0" max="1" step="0.05">
+    <span>Volume musik <b id="musV"></b></span><input type="range" id="mus" min="0" max="1" step="0.05">
+  </div>
+  <p class="sm">Kualitas grafis berlaku mulai misi berikutnya.</p>
+  <button class="btn" data-go="splash">Simpan dan kembali</button>
+</section>
+
+<!-- ===== Kredit ===== -->
+<section class="scr" id="cred">
+  <h2>Kredit Pengembang</h2>
+  <div class="panel"><p>Desain dan kode: Lead Web Game Developer &amp; Creative Director.<br>Mesin 3D: Three.js. Audio: Web Audio API. Huruf: Inter.<br>Semua zombie adalah fiksi. Semua lembur, sayangnya, nyata.</p></div>
+  <button class="btn" data-go="splash">Kembali</button>
+</section>
+
+<!-- ===== Jeda & Akhir misi ===== -->
+<section class="scr" id="pause"><h2>Permainan dijeda</h2><p>Klik di mana saja untuk lanjut.</p></section>
+<section class="scr" id="end">
+  <h2 id="eTitle"></h2><div class="big" id="eTxt"></div>
+  <div class="panel sm" id="eStat"></div>
+  <div class="row"><button class="btn pri" id="bAgain">Main Lagi</button><button class="btn" id="bMenu">Menu Utama</button></div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id), rnd = (a, b) => a + Math.random() * (b - a);
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+
+/* ===== Penyimpanan lokal (pengaturan & rekor) ===== */
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const S = Object.assign({ q: 'med', res: 1, sfx: .7, mus: .4 }, store.get('dl_set', {}));
+let best = Object.assign({ kills: 0, time: 0 }, store.get('dl_best', {}));
+
+/* ===== Data game ===== */
+const CH = [
+  { n: 'Budi', t: 'Karyawan Kantoran yang Selalu Bawa Laptop', b: 'Lembur tiga hari, laptop masih dipeluk. Deadline lebih seram daripada zombie.', hp: 100, spd: 1 },
+  { n: 'Siti', t: 'Petugas Kasir yang Haus Liburan', b: 'Tiket Bali sudah dibeli sebelum kiamat. Cuti ini tidak boleh batal.', hp: 85, spd: 1.15 },
+  { n: 'Mang Ujang', t: 'Satpam Komplek Tahan Banting', b: 'Dua belas tahun jaga portal. Belum ada tamu lolos tanpa kartu.', hp: 130, spd: .9 }
+];
+const W = {
+  shotgun: { n: 'Shotgun', d: 'Peluru menyebar, kuat jarak dekat.', mag: 6, res: 36, rate: .85, dmg: 15, pel: 8, spread: .07, rl: 1.6, rec: 1 },
+  rifle:   { n: 'Assault Rifle', d: 'Cepat dan stabil, magasin besar.', mag: 30, res: 150, rate: .09, dmg: 22, pel: 1, spread: .012, rl: 1.4, rec: .35 },
+  wajan:   { n: 'Wajan Besi', d: 'Tanpa peluru. Memukul dan mendorong mundur.', melee: true, rate: .55, dmg: 50, range: 2.7 }
+};
+const QL = { low: { sh: false, fog: .075, lamps: 2, max: 10, pm: 40 }, med: { sh: false, fog: .06, lamps: 4, max: 14, pm: 90 }, high: { sh: true, fog: .05, lamps: 4, max: 18, pm: 160 } };
+const WIN = [
+  'Helikopter akhirnya mendarat. Pilotnya melongok dan berkata, "Maaf telat. Tadi kelupaan matikan kompor di rumah, jadi putar balik dulu."',
+  'Kamera berita menyorot wajahmu. Ternyata gerombolan itu bukan zombie. Mereka cuma antre diskon 90% di mal lantai bawah. Kamu baru saja menang melawan flash sale.',
+  'Pintu brankas rahasia terbuka. Isinya selembar memo: "Terima kasih sudah lembur. Bonus: kupon makan siang, berlaku sampai kemarin."',
+  'Telepon berdering. Suara bos: "Syukurlah selamat. Laporan kuartalan masih harus masuk besok pagi, ya."'
+];
+const LOSE = [
+  'Kamu tumbang. Satu-satunya yang mencarimu adalah grup WhatsApp kantor: "Sudah baca email tadi?"',
+  'Kamu tumbang. Di kejauhan, pesan otomatis terkirim: "Mohon maaf, saya sedang cuti di luar jangkauan."',
+  'Kamu tumbang. Para zombie menemukan laptopmu dan langsung bikin rapat evaluasi.'
+];
+
+/* ===== Navigasi layar & pemilihan loadout ===== */
+let selC = 0, selW = 'shotgun';
+const show = id => { document.querySelectorAll('.scr').forEach(s => s.classList.toggle('on', s.id === id)); };
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) show(g.dataset.go); });
+function cards(host, items, isSel, pick) {
+  host.innerHTML = '';
+  items.forEach(it => {
+    const d = document.createElement('div'); d.className = 'card' + (isSel(it) ? ' sel' : ''); d.tabIndex = 0; d.innerHTML = it.html;
+    const go = () => { pick(it); drawLoad(); }; d.onclick = go; d.onkeydown = e => { if (e.key === 'Enter') go(); };
+    host.appendChild(d);
+  });
+}
+function drawLoad() {
+  cards($('chars'), CH.map((c, i) => ({ i, html: `<b>${c.n}</b><span class="sm">${c.t}</span><p>${c.b}</p><i>Nyawa ${c.hp} / Kecepatan ${c.spd}x</i>` })), c => c.i === selC, c => selC = c.i);
+  cards($('wps'), Object.keys(W).map(k => ({ k, html: `<b>${W[k].n}</b><p>${W[k].d}</p>` })), w => w.k === selW, w => selW = w.k);
+}
+function drawBest() { $('bestTxt').textContent = `Rekor: ${best.kills} zombie, bertahan ${fmt(best.time)}`; }
+const fmt = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+
+/* ===== Pengaturan ===== */
+function drawSet() {
+  $('qSeg').innerHTML = '';
+  [['low', 'Rendah'], ['med', 'Sedang'], ['high', 'Tinggi']].forEach(([k, l]) => {
+    const b = document.createElement('button'); b.className = 'btn' + (S.q === k ? ' sel' : ''); b.textContent = l;
+    b.onclick = () => { S.q = k; save(); drawSet(); }; $('qSeg').appendChild(b);
+  });
+  [['res', 'resV', '×'], ['sfx', 'sfxV', ''], ['mus', 'musV', '']].forEach(([k, v]) => {
+    $(k).value = S[k]; $(v).textContent = k === 'res' ? S[k].toFixed(2) + '×' : Math.round(S[k] * 100) + '%';
+  });
+}
+['res', 'sfx', 'mus'].forEach(k => $(k).oninput = () => { S[k] = +$(k).value; save(); drawSet(); setVol(); resize(); });
+function save() { store.set('dl_set', S); }
+
+/* ===== Audio sintesis (Web Audio API) ===== */
+let AC, mus;
+function audioInit() {
+  if (!AC) {
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    AC = new C(); mus = AC.createGain(); mus.connect(AC.destination);
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220; lp.connect(mus);
+    [55, 55.8, 82.4].forEach((f, i) => { const o = AC.createOscillator(); o.type = i === 2 ? 'sine' : 'sawtooth'; o.frequency.value = f; o.connect(lp); o.start(); });
+    const lfo = AC.createOscillator(), lg = AC.createGain(); lfo.frequency.value = .12; lg.gain.value = 90; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+  }
+  if (AC.state === 'suspended') AC.resume(); setVol();
+}
+function setVol() { if (mus) mus.gain.value = S.mus * .12; }
+function noise(d, f, v) { // ledakan / derap
+  if (!AC) return; const n = AC.sampleRate * d | 0, b = AC.createBuffer(1, n, AC.sampleRate), a = b.getChannelData(0);
+  for (let i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const s = AC.createBufferSource(); s.buffer = b; const fl = AC.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = f;
+  const g = AC.createGain(); g.gain.value = v * S.sfx; s.connect(fl); fl.connect(g); g.connect(AC.destination); s.start();
+}
+function tone(f1, f2, d, v, t) { // geraman / benturan
+  if (!AC) return; const o = AC.createOscillator(), g = AC.createGain(), n = AC.currentTime;
+  o.type = t || 'sawtooth'; o.frequency.setValueAtTime(f1, n); o.frequency.exponentialRampToValueAtTime(f2, n + d);
+  g.gain.setValueAtTime(Math.max(.0001, v * S.sfx), n); g.gain.exponentialRampToValueAtTime(.0001, n + d);
+  o.connect(g); g.connect(AC.destination); o.start(); o.stop(n + d);
+}
+
+/* ===== Variabel permainan ===== */
+const HALF = 25, TOTAL = 5, GEO = {};
+let renderer, scene, cam, vm, vmW = {}, flashM, flashL, beacon, beaconL, lamps = [], crates = [], boxes = [], zs = [], parts = [];
+let pl, ch, state = 'menu', phase, wave, spawnLeft, spawnT, brk, kills, tm, Q, firing = false, groanT = 0, bannerT, typeT;
+const keys = {};
+
+/* ===== Membangun dunia ===== */
+function buildWorld() {
+  // lantai bertekstur prosedural
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = '#17191d'; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#0b0c0e'; x.lineWidth = 3; x.strokeRect(0, 0, 128, 128);
+  for (let i = 0; i < 260; i++) { x.fillStyle = `rgba(${Math.random() < .15 ? '90,20,15' : '255,255,255'},${rnd(.01, .05)})`; x.fillRect(rnd(0, 128), rnd(0, 128), rnd(1, 4), rnd(1, 4)); }
+  const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(12, 12);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), new THREE.MeshStandardMaterial({ map: tex, roughness: .85 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), new THREE.MeshStandardMaterial({ color: 0x0c0d10, side: THREE.DoubleSide }));
+  ceil.rotation.x = Math.PI / 2; ceil.position.y = 6; scene.add(ceil);
+  // dinding
+  const wm = new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: .95 });
+  [[0, -HALF - .5, HALF * 2 + 2, 1], [0, HALF + .5, HALF * 2 + 2, 1], [-HALF - .5, 0, 1, HALF * 2], [HALF + .5, 0, 1, HALF * 2]].forEach(([px, pz, sx, sz]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 6, sz), wm); m.position.set(px, 3, pz); m.receiveShadow = true; scene.add(m);
+  });
+  // peti / barikade (AABB untuk tabrakan & penghalang tembakan)
+  crates = []; boxes = [];
+  const cm = new THREE.MeshStandardMaterial({ color: 0x2d2822, roughness: .9 });
+  for (let i = 0, k = 0; i < 16 && k < 200; k++) {
+    const px = rnd(-21, 21), pz = rnd(-21, 21), sx = rnd(1.6, 3.6), sz = rnd(1.6, 3.6), h = rnd(1.4, 2.6);
+    if (Math.hypot(px, pz - 8) < 5 || Math.hypot(px + 19, pz + 19) < 6) continue;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, h, sz), cm); m.position.set(px, h / 2, pz); m.castShadow = m.receiveShadow = true; scene.add(m);
+    const c = { x0: px - sx / 2, x1: px + sx / 2, z0: pz - sz / 2, z1: pz + sz / 2, h }; crates.push(c);
+    boxes.push(new THREE.Box3(V3(c.x0, 0, c.z0), V3(c.x1, h, c.z1))); i++;
+  }
+  // lampu neon berkedip + pencahayaan remang
+  scene.add(new THREE.HemisphereLight(0x3a4a66, 0x120808, .5));
+  lamps = [];
+  [[-15, -15], [15, -15], [-15, 15], [15, 15]].slice(0, Q.lamps).forEach(([lx, lz], i) => {
+    const l = new THREE.PointLight(i % 2 ? 0xe5a63a : 0xff4a30, 1.4, 26, 2); l.position.set(lx, 4.6, lz); l.userData.base = 1.4; scene.add(l); lamps.push(l);
+    const bulb = new THREE.Mesh(new THREE.BoxGeometry(1.2, .1, .3), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffd28a : 0xff8a70 })); bulb.position.copy(l.position); bulb.position.y = 5.9; scene.add(bulb);
+  });
+  // senter di kamera
+  const sp = new THREE.SpotLight(0xfff0d0, 1.8, 34, .5, .6, 1.5); sp.castShadow = Q.sh; sp.shadow.mapSize.set(1024, 1024); cam.add(sp); cam.add(sp.target); sp.target.position.set(0, 0, -5);
+  // titik evakuasi (tersembunyi sampai gelombang terakhir selesai)
+  beacon = new THREE.Group();
+  beacon.add(new THREE.Mesh(new THREE.TorusGeometry(2.2, .12, 8, 40), new THREE.MeshBasicMaterial({ color: 0x5fe0a0 })));
+  beacon.children[0].rotation.x = Math.PI / 2; beacon.children[0].position.y = .1;
+  beacon.add(new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 12, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x5fe0a0, transparent: true, opacity: .2, side: THREE.DoubleSide, depthWrite: false })));
+  beacon.children[1].position.y = 6; beacon.position.set(-19, 0, -19); beacon.visible = false; scene.add(beacon);
+  beaconL = new THREE.PointLight(0x5fe0a0, 0, 24, 2); beaconL.position.set(-19, 3, -19); scene.add(beaconL);
+}
+
+/* ===== Model senjata first-person ===== */
+function buildVM() {
+  vm = new THREE.Group(); vmW = {};
+  const mk = (w, h, d, col, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .6, fog: false })); m.position.set(x, y, z); return m; };
+  const sg = new THREE.Group(); sg.add(mk(.07, .07, .9, 0x222222, 0, 0, -.45), mk(.1, .09, .3, 0x5a3a22, 0, -.07, -.4), mk(.09, .14, .35, 0x4a2f1b, 0, -.05, .1));
+  const rf = new THREE.Group(); rf.add(mk(.08, .12, .8, 0x26292d, 0, 0, -.3), mk(.07, .2, .1, 0x151515, 0, -.15, -.25), mk(.04, .04, .4, 0x111111, 0, .02, -.8), mk(.08, .13, .3, 0x26292d, 0, -.04, .2));
+  const wj = new THREE.Group(); const h = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .6, 8), new THREE.MeshStandardMaterial({ color: 0x3a2a1a, fog: false })); h.rotation.x = Math.PI / 2; h.position.z = -.25;
+  const pan = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, .04, 24), new THREE.MeshStandardMaterial({ color: 0x15171a, metalness: .6, roughness: .4, fog: false })); pan.position.z = -.7; wj.add(h, pan);
+  vmW = { shotgun: sg, rifle: rf, wajan: wj }; Object.values(vmW).forEach(g => { g.visible = false; vm.add(g); });
+  flashM = mk(.16, .16, .02, 0xffcc66, 0, .03, -1); flashM.material = new THREE.MeshBasicMaterial({ color: 0xffcc66, fog: false }); flashM.visible = false; vm.add(flashM);
+  flashL = new THREE.PointLight(0xffaa55, 0, 9); flashL.position.set(0, .05, -1); vm.add(flashL);
+  vm.position.set(.28, -.27, -.55); cam.add(vm);
+}
+
+/* ===== Zombie ===== */
+function initGeo() {
+  GEO.torso = new THREE.BoxGeometry(.6, .8, .3); GEO.head = new THREE.BoxGeometry(.38, .38, .38);
+  GEO.arm = new THREE.BoxGeometry(.16, .7, .16).translate(0, -.35, 0); GEO.leg = new THREE.BoxGeometry(.2, .75, .2).translate(0, -.375, 0);
+  GEO.eye = new THREE.BoxGeometry(.07, .05, .02); GEO.eyeM = new THREE.MeshBasicMaterial({ color: 0xff2a1a });
+  GEO.p = new THREE.BoxGeometry(.07, .07, .07); GEO.pm = new THREE.MeshBasicMaterial({ color: 0x8a0707 });
+}
+function spawn() {
+  let x, z, k = 0;
+  do { const a = rnd(0, 6.283), r = rnd(19, 23.5); x = Math.cos(a) * r; z = Math.sin(a) * r; k++; } while (Math.hypot(x - pl.p.x, z - pl.p.z) < 14 && k < 12);
+  const big = wave >= 3 && Math.random() < .12, sc = big ? 1.45 : rnd(.92, 1.1);
+  const skin = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(rnd(.2, .3), .3, rnd(.2, .3)), roughness: .9 });
+  const cloth = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), .25, .14), roughness: 1 });
+  const g = new THREE.Group(), M = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); g.add(m); return m; };
+  M(GEO.torso, cloth, 0, 1.15, 0); M(GEO.head, skin, 0, 1.72, 0); M(GEO.eye, GEO.eyeM, -.09, 1.76, .19); M(GEO.eye, GEO.eyeM, .09, 1.76, .19);
+  const aL = M(GEO.arm, skin, -.4, 1.5, 0), aR = M(GEO.arm, skin, .4, 1.5, 0), lL = M(GEO.leg, cloth, -.15, .75, 0), lR = M(GEO.leg, cloth, .15, .75, 0);
+  aL.rotation.x = aR.rotation.x = -1.4; g.scale.setScalar(sc); g.position.set(x, 0, z); g.rotation.order = 'YXZ';
+  if (Q.sh) g.traverse(o => o.castShadow = true);
+  scene.add(g);
+  zs.push({ g, skin, aL, aR, lL, lR, sc, hp: (big ? 220 : 50) + wave * 10, sp: big ? 1.7 : 2 + wave * .28 + rnd(0, .9), dmg: big ? 18 : 6 + wave, atk: 0, ph: rnd(0, 6), kb: V3(0, 0, 0), flash: 0, dead: false, t: 0 });
+}
+const alive = () => zs.reduce((n, z) => n + (z.dead ? 0 : 1), 0);
+
+/* ===== Tabrakan AABB (pemain & zombie vs peti) ===== */
+function collide(p, r, feet) {
+  for (const c of crates) {
+    if (feet >= c.h - .1 || p.x < c.x0 - r || p.x > c.x1 + r || p.z < c.z0 - r || p.z > c.z1 + r) continue;
+    const a = p.x - (c.x0 - r), b = (c.x1 + r) - p.x, d = p.z - (c.z0 - r), e = (c.z1 + r) - p.z, m = Math.min(a, b, d, e);
+    if (m === a) p.x = c.x0 - r; else if (m === b) p.x = c.x1 + r; else if (m === d) p.z = c.z0 - r; else p.z = c.z1 + r;
+  }
+  p.x = Math.max(-HALF + r + .3, Math.min(HALF - r - .3, p.x)); p.z = Math.max(-HALF + r + .3, Math.min(HALF - r - .3, p.z));
+}
+
+/* ===== Partikel darah ===== */
+function burst(pos, n) {
+  for (let i = 0; i < n; i++) {
+    let q = parts.find(a => !a.on);
+    if (!q) { if (parts.length >= Q.pm) return; q = { m: new THREE.Mesh(GEO.p, GEO.pm), v: V3(0, 0, 0), on: false }; scene.add(q.m); parts.push(q); }
+    q.on = true; q.life = .6; q.m.visible = true; q.m.position.copy(pos); q.v.set(rnd(-2, 2), rnd(1, 4), rnd(-2, 2));
+  }
+}
+
+/* ===== Menembak, hitbox & reload ===== */
+function hurtZ(z, dmg, dir) {
+  if (z.dead) return; z.hp -= dmg; z.flash = .1; z.kb.x += dir.x * 4; z.kb.z += dir.z * 4;
+  if (z.hp <= 0) { z.dead = true; z.t = 0; kills++; tone(160, 40, .5, .3); }
+}
+function fire() {
+  const w = W[pl.wp]; if (pl.cd > 0 || pl.rl > 0) return;
+  pl.cd = w.rate;
+  if (w.melee) { // pukulan wajan: kerucut di depan pemain
+    pl.swing = 1; tone(320, 110, .15, .5, 'square');
+    const f = V3(-Math.sin(pl.yaw), 0, -Math.cos(pl.yaw));
+    zs.forEach(z => { if (z.dead) return; const t = V3(z.g.position.x - pl.p.x, 0, z.g.position.z - pl.p.z), d = t.length(); if (d < w.range && t.normalize().dot(f) > .45) { hurtZ(z, w.dmg, t); burst(V3(z.g.position.x, 1.3, z.g.position.z), 8); mark(); } });
+    return;
+  }
+  if (pl.mag <= 0) { reload(); return; }
+  pl.mag--; pl.rec = w.rec; pl.kick += .02 * w.rec + .004; flashM.visible = true; flashL.intensity = 3; pl.fl = .05;
+  pl.wp === 'shotgun' ? (noise(.3, 1800, .9), tone(120, 40, .25, .5, 'square')) : noise(.14, 3200, .5);
+  const o = cam.position;
+  for (let i = 0; i < w.pel; i++) {
+    const d = V3(rnd(-w.spread, w.spread), rnd(-w.spread, w.spread), -1).normalize().applyQuaternion(cam.quaternion), ray = new THREE.Ray(o.clone(), d), tmp = V3(0, 0, 0);
+    let bt = 60, hz = null, head = false;
+    boxes.forEach(b => { if (ray.intersectBox(b, tmp)) { const t = tmp.distanceTo(o); if (t < bt) bt = t; } });
+    zs.forEach(z => {
+      if (z.dead) return; const c = V3(z.g.position.x - o.x, z.sc - o.y, z.g.position.z - o.z), t = c.dot(d);
+      if (t < 0 || t >= bt) return; if (c.sub(d.clone().multiplyScalar(t)).length() < .5 * z.sc) { bt = t; hz = z; head = o.y + d.y * t > 1.5 * z.sc; }
+    });
+    if (hz) { hurtZ(hz, w.dmg * (head ? 2 : 1), d); burst(o.clone().add(d.multiplyScalar(bt)), 5); mark(); }
+  }
+  if (pl.mag === 0) setTimeout(reload, 250);
+}
+function mark() { $('cross').classList.add('hit'); setTimeout(() => $('cross').classList.remove('hit'), 90); }
+function reload() {
+  const w = W[pl.wp]; if (w.melee || pl.rl > 0 || pl.mag === w.mag || pl.res <= 0) return;
+  pl.rl = w.rl; tone(900, 600, .05, .25, 'square'); setTimeout(() => tone(500, 300, .08, .3, 'square'), w.rl * 700);
+}
+function hurtP(d) {
+  pl.hp -= d; pl.dmgA = .85; tone(220, 80, .25, .5, 'square');
+  if (pl.hp <= 0) endGame(false);
+}
+
+/* ===== Gelombang & misi ===== */
+function banner(t, s) {
+  const b = $('banner'); b.querySelector('b').textContent = t; b.querySelector('span').textContent = s || ''; b.classList.add('on');
+  clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('on'), 2800);
+}
+function nextWave() { wave++; spawnLeft = 5 + wave * 4; spawnT = 1; phase = 'fight'; banner(`Gelombang ${wave} dari ${TOTAL}`, 'Bertahan hidup!'); }
+function startEvac() {
+  phase = 'evac'; spawnT = 1; beacon.visible = true; beaconL.intensity = 2.5;
+  banner('Evakuasi terbuka', 'Lari ke cahaya hijau. Gerombolan menyusul!'); tone(60, 30, 1.4, .6);
+  for (let i = 0; i < 6; i++) spawn();
+}
+function waves(dt) {
+  if (phase === 'break') { brk -= dt; if (brk <= 0) nextWave(); }
+  else if (phase === 'fight') {
+    spawnT -= dt;
+    if (spawnLeft > 0 && spawnT <= 0 && alive() < Q.max) { spawn(); spawnLeft--; spawnT = Math.max(.3, 1.1 - wave * .15); }
+    if (spawnLeft <= 0 && alive() === 0) {
+      if (wave >= TOTAL) startEvac();
+      else { phase = 'break'; brk = 5; pl.hp = Math.min(ch.hp, pl.hp + 30); if (!W[pl.wp].melee) pl.res = Math.min(W[pl.wp].res * 2, pl.res + W[pl.wp].mag * 2); banner(`Gelombang ${wave} selesai`, 'Medkit dan peluru tambahan'); }
+    }
+  } else if (phase === 'evac') {
+    spawnT -= dt; if (spawnT <= 0 && alive() < 10) { spawn(); spawnT = 2.2; }
+    if (Math.hypot(pl.p.x + 19, pl.p.z + 19) < 2.4) endGame(true);
+  }
+}
+
+/* ===== Update per frame ===== */
+function update(dt) {
+  tm += dt;
+  // gerak pemain
+  const f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0), r = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  let mx = -Math.sin(pl.yaw) * f + Math.cos(pl.yaw) * r, mz = -Math.cos(pl.yaw) * f - Math.sin(pl.yaw) * r; const ml = Math.hypot(mx, mz);
+  const moving = ml > 0; if (ml > 1) { mx /= ml; mz /= ml; }
+  const sp = 5.5 * ch.spd; pl.p.x += mx * sp * dt; pl.p.z += mz * sp * dt;
+  if (keys.Space && pl.p.y <= .001) pl.vy = 7.5;
+  pl.vy -= 22 * dt; pl.p.y += pl.vy * dt; if (pl.p.y < 0) { pl.p.y = 0; pl.vy = 0; }
+  collide(pl.p, .4, pl.p.y);
+  if (moving && pl.p.y < .05) { pl.bob += dt * 9; pl.step -= dt; if (pl.step <= 0) { noise(.06, 500, .25); pl.step = .36 / ch.spd; } }
+  pl.kick *= Math.max(0, 1 - dt * 10);
+  cam.position.set(pl.p.x, pl.p.y + 1.7 + Math.sin(pl.bob) * .04, pl.p.z); cam.rotation.set(pl.pitch + pl.kick, pl.yaw, 0);
+  // senjata: cooldown, reload, animasi
+  pl.cd -= dt; const w = W[pl.wp];
+  if (pl.rl > 0) { pl.rl -= dt; if (pl.rl <= 0) { const n = Math.min(w.mag - pl.mag, pl.res); pl.mag += n; pl.res -= n; } }
+  if (firing) fire();
+  if (pl.fl > 0) { pl.fl -= dt; if (pl.fl <= 0) { flashM.visible = false; flashL.intensity = 0; } }
+  pl.rec *= Math.max(0, 1 - dt * 12); pl.swing = Math.max(0, pl.swing - dt * 4);
+  vm.position.set(.28 + Math.sin(pl.bob * .5) * .01, -.27 - Math.abs(Math.sin(pl.bob)) * .012 - (pl.rl > 0 ? .25 : 0), -.55 + pl.rec * .12);
+  vm.rotation.set(pl.rec * .12 - (pl.rl > 0 ? .8 : 0) - Math.sin(pl.swing * Math.PI) * 1.1, -Math.sin(pl.swing * Math.PI) * .6, 0);
+  waves(dt);
+  // zombie
+  const P = pl.p;
+  for (let i = zs.length - 1; i >= 0; i--) {
+    const z = zs[i], g = z.g;
+    if (z.dead) { z.t += dt; g.rotation.x = -Math.min(z.t * 4, 1.5); if (z.t > 3) { scene.remove(g); zs.splice(i, 1); } continue; }
+    const dx = P.x - g.position.x, dz = P.z - g.position.z, d = Math.hypot(dx, dz) || 1;
+    g.rotation.y = Math.atan2(dx, dz);
+    if (d > 1.05) { g.position.x += dx / d * z.sp * dt; g.position.z += dz / d * z.sp * dt; z.ph += dt * z.sp * 2.4; }
+    z.atk -= dt; if (d < 1.2 && z.atk <= 0 && P.y < 1.2) { z.atk = .9; hurtP(z.dmg); }
+    g.position.x += z.kb.x * dt; g.position.z += z.kb.z * dt; z.kb.multiplyScalar(Math.max(0, 1 - dt * 6));
+    for (let j = i + 1; j < zs.length; j++) { const o = zs[j].g; if (zs[j].dead) continue; const ax = g.position.x - o.position.x, az = g.position.z - o.position.z, ad = Math.hypot(ax, az); if (ad < .7 && ad > .001) { g.position.x += ax / ad * .02; g.position.z += az / ad * .02; } }
+    collide(g.position, .45 * z.sc, 0);
+    z.lL.rotation.x = Math.sin(z.ph) * .6; z.lR.rotation.x = -Math.sin(z.ph) * .6; z.aL.rotation.x = z.aR.rotation.x = -1.4 + Math.sin(z.ph * .5) * .15;
+    g.rotation.z = Math.sin(z.ph) * .05;
+    if (z.flash > 0) { z.flash -= dt; z.skin.emissive.setHex(z.flash > 0 ? 0x771111 : 0); }
+  }
+  // geraman acak
+  groanT -= dt; if (groanT <= 0 && alive() > 0) { tone(rnd(70, 110), rnd(40, 60), .8, .2); groanT = rnd(1.8, 4); }
+  // partikel & lampu
+  parts.forEach(q => { if (!q.on) return; q.life -= dt; q.v.y -= 10 * dt; q.m.position.addScaledVector(q.v, dt); if (q.life <= 0 || q.m.position.y < 0) { q.on = false; q.m.visible = false; } });
+  lamps.forEach(l => { l.intensity = l.userData.base * (Math.random() < .03 ? .1 : .75 + .25 * Math.sin(tm * 3 + l.position.x)); });
+  if (beacon.visible) beacon.rotation.y += dt;
+  pl.dmgA = Math.max(0, pl.dmgA - dt * 1.2); $('dmg').style.opacity = pl.dmgA;
+  hud();
+}
+function hud() {
+  $('bar').firstChild.style.width = Math.max(0, pl.hp / ch.hp * 100) + '%';
+  const w = W[pl.wp]; $('wname').textContent = w.n + (pl.rl > 0 ? ' (isi ulang)' : ''); $('ammo').textContent = w.melee ? 'Tak terbatas' : `${pl.mag} / ${pl.res}`;
+  $('kills').textContent = `Zombie: ${kills}`; $('time').textContent = `Waktu: ${fmt(tm)}`;
+  $('obj').textContent = phase === 'evac' ? `Capai titik evakuasi: ${Math.round(Math.hypot(pl.p.x + 19, pl.p.z + 19))} m`
+    : phase === 'break' ? `Gelombang ${wave} selesai. Bersiap...` : `Gelombang ${wave} / ${TOTAL}. Zombie tersisa: ${alive() + spawnLeft}`;
+}
+
+/* ===== Mulai & akhiri misi ===== */
+function resize() {
+  if (!renderer) return;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2) * S.res); renderer.setSize(innerWidth, innerHeight);
+  if (cam) { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
+}
+function startGame() {
+  audioInit(); Q = QL[S.q]; ch = CH[selC];
+  try {
+    if (!renderer) { renderer = new THREE.WebGLRenderer({ antialias: S.q !== 'low', powerPreference: 'high-performance' }); $('game').appendChild(renderer.domElement); initGeo(); }
+  } catch (e) { alert('WebGL tidak tersedia di perangkat ini.'); return; }
+  renderer.shadowMap.enabled = Q.sh; renderer.setClearColor(0x050607);
+  scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x050607, Q.fog);
+  cam = new THREE.PerspectiveCamera(75, 1, .05, 80); cam.rotation.order = 'YXZ'; scene.add(cam);
+  zs = []; parts = []; buildWorld(); buildVM(); vmW[selW].visible = true; resize();
+  const w = W[selW];
+  pl = { p: V3(0, 0, 8), vy: 0, hp: ch.hp, yaw: 0, pitch: 0, wp: selW, mag: w.mag || 0, res: w.res || 0, cd: 0, rl: 0, rec: 0, kick: 0, swing: 0, fl: 0, bob: 0, step: 0, dmgA: 0 };
+  wave = 0; kills = 0; tm = 0; spawnLeft = 0; phase = 'break'; brk = 2.5; firing = false; state = 'play';
+  banner('Misi dimulai', 'Bertahan hidup sampai evakuasi terbuka');
+  show('none'); $('hud').classList.add('on');
+  const c = renderer.domElement, p = c.requestPointerLock && c.requestPointerLock(); if (p && p.catch) p.catch(() => {});
+}
+function endGame(win) {
+  if (state !== 'play') return; state = 'over'; firing = false; document.exitPointerLock && document.exitPointerLock();
+  $('hud').classList.remove('on'); $('dmg').style.opacity = 0;
+  const nb = kills > best.kills || tm > best.time; best = { kills: Math.max(kills, best.kills), time: Math.max(tm, best.time) }; store.set('dl_best', best); drawBest();
+  $('eTitle').textContent = win ? 'Misi selesai' : 'Kamu tumbang';
+  $('eStat').innerHTML = `Zombie dikalahkan: <b>${kills}</b><br>Waktu bertahan: <b>${fmt(tm)}</b><br>Rekor terbaik: ${best.kills} zombie, ${fmt(best.time)}${nb ? '<br><b>Rekor baru!</b>' : ''}`;
+  const txt = (win ? WIN : LOSE)[Math.floor(Math.random() * (win ? WIN.length : LOSE.length))], el = $('eTxt'); el.textContent = ''; show('end');
+  clearInterval(typeT); let i = 0; typeT = setInterval(() => { el.textContent = txt.slice(0, ++i); if (i >= txt.length) clearInterval(typeT); }, 26); // teks epilog ketik
+}
+
+/* ===== Input ===== */
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (state === 'play') { if (e.code === 'KeyR') reload(); if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); }
+});
+addEventListener('keyup', e => keys[e.code] = false);
+addEventListener('mousedown', e => { if (e.button === 0 && state === 'play' && document.pointerLockElement) firing = true; });
+addEventListener('mouseup', e => { if (e.button === 0) firing = false; });
+addEventListener('mousemove', e => {
+  if (state !== 'play' || !document.pointerLockElement) return;
+  pl.yaw -= e.movementX * .0022; pl.pitch = Math.max(-1.45, Math.min(1.45, pl.pitch - e.movementY * .0022));
+});
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement) { if (state === 'paused') { state = 'play'; show('none'); } }
+  else if (state === 'play') { state = 'paused'; firing = false; show('pause'); }
+});
+$('pause').onclick = () => { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); };
+addEventListener('blur', () => { firing = false; for (const k in keys) keys[k] = false; });
+addEventListener('resize', resize);
+$('bGo').onclick = startGame; $('bAgain').onclick = startGame; $('bMenu').onclick = () => { state = 'menu'; show('splash'); };
+
+/* ===== Loop utama ===== */
+let last = 0;
+function loop(t) {
+  requestAnimationFrame(loop); const dt = Math.min((t - last) / 1000, .05); last = t;
+  if (state === 'play') update(dt);
+  if (renderer && scene && cam) renderer.render(scene, cam);
+}
+drawLoad(); drawSet(); drawBest(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
